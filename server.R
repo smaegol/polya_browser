@@ -1,11 +1,21 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
+#######################################################################################
+###                                                                                 ###
+###     Copyright (C) 2018  Pawel Krawczyk (p.krawczyk@ibb.waw.pl)                  ###
+###                                                                                 ###
+###     This program is free software: you can redistribute it and/or modify        ###
+###     it under the terms of the GNU General Public License as published by        ###
+###     the Free Software Foundation, either version 3 of the License, or           ###
+###     (at your option) any later version.                                         ###
+###                                                                                 ###
+###     This program is distributed in the hope that it will be useful,             ###
+###     but WITHOUT ANY WARRANTY; without even the implied warranty of              ###
+###     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               ###
+###     GNU General Public License for more details.                                ###
+###                                                                                 ###
+###     You should have received a copy of the GNU General Public License           ###
+###     along with this program. If not, see <http://www.gnu.org/licenses/>.        ###
+###                                                                                 ###
+#######################################################################################
 
 library(shiny)
 library(dplyr)
@@ -18,23 +28,23 @@ ensdb <- EnsDb.Mmusculus.v79
 library(Gviz)
 library(rtracklayer)
 library(GenomicRanges)
-#library(BSgenome.Hsapiens.UCSC.hg38)
+
 library(BSgenome.Mmusculus.UCSC.mm10)
 library(shinycssloaders)
-#library(biomaRt)
 
-#mart <- useMart("ensembl",dataset="hsapiens_gene_ensembl")
+#Set GVIZ and ensembldb compatibility options
 seqlevelsStyle(ensdb) <- "UCSC"
 options(ucscChromosomeNames=FALSE)
-#options(shiny.port = 7999)
-#options(shiny.host = "192.168.136.3")
+
+#paths to files to read (mapping and coverage)
 bigwig_file_wt<-BigWigFile("wt_0h_LPS_all.fastq.mm18.mapped.sorted.bam.bw")
 bigwig_file_mut<-BigWigFile("AC_0h_LPS_all.fastq.mm18.mapped.sorted.bam.bw")
 bam_file_wt <- "wt_0h_LPS_all.fastq.mm18.mapped.sorted.bam"
 bam_file_mut <- "AC_0h_LPS_all.fastq.mm18.mapped.sorted.bam"
-axis_track <- GenomeAxisTrack()
 
-selected_transcript = "Gapdh"
+axis_track <- GenomeAxisTrack() #initialize genome axis track for Gviz
+
+selected_transcript = "Gapdh" #default transcript to show
 
 get_location <- function(location2,show_only_selected_transcripts = FALSE) {
   locationz<-GenomicRanges::reduce(location2)
@@ -51,7 +61,7 @@ get_location <- function(location2,show_only_selected_transcripts = FALSE) {
   return(locationz)
 }
 
-
+#read alignment track for given location
 get_alignment_track <- function(locationz) {
   location_from=start(locationz)
   location_to = end(locationz)
@@ -59,6 +69,7 @@ get_alignment_track <- function(locationz) {
   return(align_Track)
 }
 
+#get gene track for given location
 get_gene_track <- function(location,show_only_selected_transcripts = FALSE,selected_isoform=NA,found_isoforms=c()) {
   location_from <- start(location)
   location_to <- end(location)
@@ -107,11 +118,8 @@ plot_genome <- function(locationz,gene_track,align_track=NA,show_only_selected_t
     name="AC_0h_LPS coverage", type="l", col="#00AA00", legend=FALSE)
   
   
-  
-  #align_Track <- AlignmentsTrack(bam_file,isPaired = FALSE)
   ideoTrack <- IdeogramTrack(genome = "mm10", chromosome = as.character(seqnames(locationz))[1])
   
-  #biomTrack <- BiomartGeneRegionTrack(genome = "hg38",chromosome = as.character(seqnames(locationz))[1], start = start(locationz), end = end(locationz), name = "ENSEMBL")
   sTrack <- SequenceTrack(Mmusculus)
   
   tracks_list <- list(ideoTrack,sTrack,gene_track,data_track_wt,data_track_mut)
@@ -119,7 +127,6 @@ plot_genome <- function(locationz,gene_track,align_track=NA,show_only_selected_t
   if (!is.na(align_track)) {
     tracks_list <- c(tracks_list,align_track)
   }
-  
   
   plotTracks(
     tracks_list,
@@ -182,30 +189,21 @@ plot_genome3 <- function(location2,show_only_selected_transcripts = FALSE,select
   ck <- AlignmentsTrack(bam_file,isPaired = FALSE)
   
   
-  
-  #if (length(found_isoforms!='') {
-  
-  #print(found_isoforms)
-  #}
-  #print(paste0("sel: ",selected_isoform))
   if (selected_isoform=='NA') {
-    #print(selected_isoform)
+
     feature(gene_track)[transcript(gene_track)==selected_isoform]<-"good"
     interestcolor <- list("found"="green", "good"="red")
-    #print(feature(gene_track))
+
   }
   else {
     interestcolor <- list("found"="green")
   }
-  #print(interestcolor)
-  #print(feature(gene_track))
-  
+ 
   displayPars(gene_track) <- interestcolor
   
   
   ideoTrack <- IdeogramTrack(genome = "hg38", chromosome = as.character(seqnames(locationz))[1])
   
-  #biomTrack <- BiomartGeneRegionTrack(genome = "hg38",chromosome = as.character(seqnames(locationz))[1], start = start(locationz), end = end(locationz), name = "ENSEMBL")
   sTrack <- SequenceTrack(Hsapiens)
   plotTracks(
     list(ideoTrack,sTrack,gene_track),
@@ -230,7 +228,7 @@ server <- function(input, output) {
   #a scatterplot with certain points highlighted
   output$boxplot = renderPlotly({
     selected_row <- input$table_rows_selected
-    # selected_transcript = macrophages_merged_summary[selected_row,]$transcript
+    
     data_transcript = data_transcript()
     isoforms_plot <- ggplot(data_transcript,aes(x=ensembl_transcript_id,y=polya_length)) + geom_boxplot()  + ggtitle(selected_transcript)
     if (nrow(data_transcript)<10000) {
@@ -245,8 +243,7 @@ server <- function(input, output) {
     selected_row <- input$table_rows_selected
     selected_transcript = macrophages_merged_summary[selected_row,]$transcript
     data_transcript = data_transcript()
-    #selected_isoform_plot=selected_isoform$isoform_name
-    #print(selected_isoform_plot)
+    
     if (selected_isoform$isoform_name!='NA') {
       if (input$histogram_distribution==FALSE) {
         distribution_plot <- ggplot(data_transcript %>% filter(ensembl_transcript_id==selected_isoform$isoform_name),aes(x=polya_length,colour=group)) + geom_density()  + ggtitle(selected_transcript)
@@ -333,40 +330,27 @@ server <- function(input, output) {
   },label="transcript_isoforms")
   
   output$encode = renderPlot({
-    # selected_row <- input$x1_rows_selected 
-    # selected_transcript = polyA_deduplicated_summary_hg38[selected_row,]$transcript
-    # data_transcript = polyA_deduplicated_all_hg38_dt[transcript == selected_transcript]
-    # transcript_isoforms <- unique(data_transcript$ensembl_transcript_id)
-    # print(transcript_isoforms)
-    # gene_model<-getGeneRegionTrackForGviz(ensdb, filter = AnnotationFilter(~ tx_id %in% transcript_isoforms ))
+    
     locationz = locationz()
     gene_track = gene_track()
     
-    #dataTrack_nano1 <- DataTrack(range = "/home/smaegol/analyses/ONT/RNA/wgs2/NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorted.bam.bw")
-    plot_genome(locationz,gene_track)
+        plot_genome(locationz,gene_track)
     
-    #
-    #plotTracks(list(coverage=dataTrack_nano1,gene_model=GeneRegionTrack(gene_model)),type="l",chromosome=as.character(seqnames(gene_model))[1])
-  })
+    })
   
   output$alignment = renderPlot({
     
-    #dataTrack_nano1 <- DataTrack(range = "/home/smaegol/analyses/ONT/RNA/wgs2/NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorted.bam.bw")
     if (input$show_alignment==TRUE) {
       locationz = get_location(gene_model())
       gene_track = gene_track()
       align_track = align_track()
-      #dataTrack_nano1 <- DataTrack(range = "/home/smaegol/analyses/ONT/RNA/wgs2/NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorted.bam.bw")
       print(gene_track)
       plot_genome(locationz,gene_track,align_track = align_track(),input$show_only_selected_transcripts)
       
-      #plot_genome3(gene_model(),input$show_only_selected_transcripts,found_isoforms = transcript_isoforms(),selected_isoform = transcript_name)
     }
     else {
       print("Alignment plot disabled")
     }
-    #
-    #plotTracks(list(coverage=dataTrack_nano1,gene_model=GeneRegionTrack(gene_model)),type="l",chromosome=as.character(seqnames(gene_model))[1])
   })
   
   output$clicks = renderPrint({
